@@ -42,10 +42,8 @@
 <fieldset class="cbi-section">
 	<table width="100%">
 	  	<td colspan="4" width="100%">
-	  		<p style="margin: 0px 0; text-align: center">
-				<img id="_logo" src="/luci-static/resources/openclash/img/logo.png?<%=random%>" loading="lazy" width="250px" onload="return logo_check(this,this.src,'/luci-static/resources/openclash/img/meta.png')" onerror="return logo_error(this,'/luci-static/resources/openclash/img/logo.png?<%=random%>')" title="Hello, World!" alt="OpenClash" onclick="return homepage()" />
-			</p>
-	  		<p id="_clashversion" style="margin: 0px 0; text-align: center">
+	  			  		
+                        	<p id="_clashversion" style="margin: 0px 0; text-align: center">
 				<img src="/luci-static/resources/openclash/img/version.svg?<%=random%>" alt="currentversion" height="21px" onclick="return go_update()">
 	  		</p>     		
 
@@ -340,16 +338,16 @@
 			};
 		}
 		else if ( status.startlog != "\n" && status.startlog != "" ) {
-			if ( status.startlog.match("Tip:") || status.startlog.match("提示：")) {
+			if ( status.startlog.match("Tip:") || status.startlog.match("æç¤ºï¼š")) {
 				startlog.innerHTML = '<b style=color:#ff6f00>'+status.startlog+'</b>';
 			}
-			else if ( status.startlog.match("Error:") || status.startlog.match("错误：")) {
+			else if ( status.startlog.match("Error:") || status.startlog.match("é”™è¯¯ï¼š")) {
 				startlog.innerHTML = '<b style=color:#FF0000>'+status.startlog+'</b>';
 			}
-			else if ( status.startlog.match("Warning:") || status.startlog.match("警告：")) {
+			else if ( status.startlog.match("Warning:") || status.startlog.match("è­¦å‘Šï¼š")) {
 	    		startlog.innerHTML = '<b style=color:#ff00bb>'+status.startlog+'</b>';
 			}
-			else if ( status.startlog.match("Watchdog:") || status.startlog.match("守护程序：")) {
+			else if ( status.startlog.match("Watchdog:") || status.startlog.match("å®ˆæŠ¤ç¨‹åºï¼š")) {
 	    		startlog.innerHTML = '<b style=color:#b300ff>'+status.startlog+'</b>';
 			}
 			else {
