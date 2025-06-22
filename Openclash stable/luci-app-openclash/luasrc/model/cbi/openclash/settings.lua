@@ -7,6 +7,7 @@ local UTIL = require "luci.util"
 local fs = require "luci.openclash"
 local uci = require "luci.model.uci".cursor()
 local json = require "luci.jsonc"
+local datatypes = require "luci.cbi.datatypes"
 
 font_green = [[<b style=color:green>]]
 font_red = [[<b style=color:red>]]
@@ -17,27 +18,36 @@ bold_off = [[</strong>]]
 local op_mode = uci:get("openclash", "config", "operation_mode")
 if not op_mode then op_mode = "redir-host" end
 local lan_ip = fs.lanip()
-m = Map("openclash")
+m = Map("openclash", translate("Plugin Settings"))
 m.pageaction = false
-m.description = translate("")
+m.description = translate("Note: To restore the default configuration, try accessing:").." <a href='javascript:void(0)' onclick='javascript:restore_config(this)'>http://"..lan_ip.."/cgi-bin/luci/admin/services/openclash/restore</a>"..
+"<br/>"..translate("Note: It is not recommended to enable IPv6 and related services for routing. Most of the network connection problems reported so far are related to it")..
+"<br/>"..font_green..translate("Note: Turning on secure DNS in the browser will cause abnormal shunting, please be careful to turn it off")..font_off..
+"<br/>"..font_green..translate("Note: Some software will modify the device HOSTS, which will cause abnormal shunt, please pay attention to check")..font_off..
+"<br/>"..font_green..translate("Note: Game proxy please use nodes except VMess")..font_off..
+"<br/>"..font_green..translate("Note: If you need to perform client access control in Fake-IP mode, please change the DNS hijacking mode to firewall forwarding")..font_off..
+"<br/>"..translate("Note: The default proxy routes local traffic, BT, PT download, etc., please use Redir-Host mode as much as possible and pay attention to traffic avoidance")..
+"<br/>"..translate("Note: If the connection is abnormal, please follow the steps on this page to check first")..": ".."<a href='javascript:void(0)' onclick='javascript:return winOpen(\"https://github.com/vernesong/OpenClash/wiki/%E7%BD%91%E7%BB%9C%E8%BF%9E%E6%8E%A5%E5%BC%82%E5%B8%B8%E6%97%B6%E6%8E%92%E6%9F%A5%E5%8E%9F%E5%9B%A0\")'>"..translate("Click to the page").."</a>"..
+"<br/>"..font_green..translate("For More Useful Meta Core Functions Go Wiki")..": "..font_off.."<a href='javascript:void(0)' onclick='javascript:return winOpen(\"https://wiki.metacubex.one/\")'>"..translate("https://wiki.metacubex.one/").."</a>"
+
 s = m:section(TypedSection, "openclash")
 s.anonymous = true
 
 s:tab("op_mode", translate("Operation Mode"))
 s:tab("traffic_control", translate("Traffic Control"))
 s:tab("dns", "DNS "..translate("Settings"))
---s:tab("stream_enhance", translate("Streaming Enhance"))
+s:tab("stream_enhance", translate("Streaming Enhance"))
 s:tab("lan_ac", translate("Black&White"))
 s:tab("dashboard", translate("Dashboard Settings"))
 s:tab("ipv6", translate("IPv6 Settings"))
---s:tab("rules_update", translate("Rules Update"))
---s:tab("geo_update", translate("GEO Update"))
+s:tab("rules_update", translate("Rules Update"))
+s:tab("geo_update", translate("GEO Update"))
 s:tab("chnr_update", translate("Chnroute Update"))
 s:tab("auto_restart", translate("Auto Restart"))
 s:tab("version_update", translate("Version Update"))
 s:tab("developer", translate("Developer Settings"))
 s:tab("debug", translate("Debug Logs"))
---s:tab("dlercloud", translate("Dler Cloud"))
+s:tab("dlercloud", translate("Dler Cloud"))
 
 o = s:taboption("op_mode", ListValue, "en_mode", font_red..bold_on..translate("Select Mode")..bold_off..font_off)
 o.description = translate("Select Mode For OpenClash Work, Try Flush DNS Cache If Network Error")
@@ -239,26 +249,86 @@ o:value("accept", translate("ACCEPT"))
 o:value("drop", translate("DROP"))
 o.rmempty = false
 
+local function ip_compare(a, b)
+    local function ipv4_to_number(ip)
+        local p1, p2, p3, p4 = ip:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)$")
+        if p1 and p2 and p3 and p4 then
+            local n1, n2, n3, n4 = tonumber(p1), tonumber(p2), tonumber(p3), tonumber(p4)
+            if n1 <= 255 and n2 <= 255 and n3 <= 255 and n4 <= 255 then
+                return n1 * 16777216 + n2 * 65536 + n3 * 256 + n4
+            end
+        end
+        return 0
+    end
+    
+    local a_is_ipv4 = datatypes.ip4addr(a.dest)
+    local b_is_ipv4 = datatypes.ip4addr(b.dest)
+    
+    if a_is_ipv4 and not b_is_ipv4 then
+        return true
+    elseif not a_is_ipv4 and b_is_ipv4 then
+        return false
+    elseif a_is_ipv4 and b_is_ipv4 then
+        return ipv4_to_number(a.dest) < ipv4_to_number(b.dest)
+    else
+        return a.dest < b.dest
+    end
+end
+
+local all_neighbors = {}
+
 luci.ip.neighbors({ family = 4 }, function(n)
-	if n.mac and n.dest then
-		ip_b:value(n.dest:string())
-		ip_w:value(n.dest:string())
-		ip_ac:value(n.dest:string())
-		mac_b:value(n.mac, "%s (%s)" %{ n.mac, n.dest:string() })
-		mac_w:value(n.mac, "%s (%s)" %{ n.mac, n.dest:string() })
-	end
+    if n.mac and n.dest then
+        table.insert(all_neighbors, {dest = n.dest:string(), mac = n.mac, family = 4})
+    end
 end)
 
 if string.len(SYS.exec("/usr/share/openclash/openclash_get_network.lua 'gateway6'")) ~= 0 then
-luci.ip.neighbors({ family = 6 }, function(n)
-	if n.mac and n.dest then
-		ip_b:value(n.dest:string())
-		ip_w:value(n.dest:string())
-		ip_ac:value(n.dest:string())
-		mac_b:value(n.mac, "%s (%s)" %{ n.mac, n.dest:string() })
-		mac_w:value(n.mac, "%s (%s)" %{ n.mac, n.dest:string() })
-	end
-end)
+    luci.ip.neighbors({ family = 6 }, function(n)
+        if n.mac and n.dest then
+            table.insert(all_neighbors, {dest = n.dest:string(), mac = n.mac, family = 6})
+        end
+    end)
+end
+
+table.sort(all_neighbors, ip_compare)
+
+local mac_ip_map = {}
+local mac_order = {}
+
+for _, item in ipairs(all_neighbors) do
+    ip_b:value(item.dest)
+    ip_w:value(item.dest)
+    ip_ac:value(item.dest)
+    if not mac_ip_map[item.mac] then
+        mac_ip_map[item.mac] = {}
+        table.insert(mac_order, item.mac)
+    end
+    table.insert(mac_ip_map[item.mac], item.dest)
+end
+
+for _, mac in ipairs(mac_order) do
+    local ips = mac_ip_map[mac]
+    table.sort(ips, function(a, b)
+        local a_is_ipv4 = datatypes.ip4addr(a)
+        local b_is_ipv4 = datatypes.ip4addr(b)
+        if a_is_ipv4 and not b_is_ipv4 then
+            return true
+        elseif not a_is_ipv4 and b_is_ipv4 then
+            return false
+        elseif a_is_ipv4 and b_is_ipv4 then
+            local function ipv4_to_number(ip)
+                local p1, p2, p3, p4 = ip:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)$")
+                return p1 and p2 and p3 and p4 and (tonumber(p1)*16777216+tonumber(p2)*65536+tonumber(p3)*256+tonumber(p4)) or 0
+            end
+            return ipv4_to_number(a) < ipv4_to_number(b)
+        else
+            return a < b
+        end
+    end)
+    local ip_str = table.concat(ips, "|")
+    mac_b:value(mac, "%s (%s)" %{ mac, ip_str })
+    mac_w:value(mac, "%s (%s)" %{ mac, ip_str })
 end
 
 ---- Traffic Control
@@ -350,7 +420,7 @@ function o.write(self, section, value)
 		end
 	end
 end
---[[
+
 --Stream Enhance
 o = s:taboption("stream_enhance", Flag, "stream_auto_select", font_red..bold_on..translate("Auto Select Unlock Proxy")..bold_off..font_off)
 o.description = translate("Auto Select Proxy For Streaming Unlock, Support Netflix, Disney Plus, HBO And YouTube Premium, etc")
@@ -882,9 +952,8 @@ o.write = function()
   SYS.call("/usr/share/openclash/openclash_geosite.sh >/dev/null 2>&1 &")
   HTTP.redirect(DISP.build_url("admin", "services", "openclash"))
 end
-]]--
 o:depends("geosite_auto_update", "1")
---[[
+
 o = s:taboption("geo_update", Flag, "geoasn_auto_update", font_red..bold_on..translate("Auto Update Geo ASN")..bold_off..font_off)
 o.default = 0
 
@@ -927,7 +996,7 @@ o.write = function()
   HTTP.redirect(DISP.build_url("admin", "services", "openclash"))
 end
 o:depends("geoasn_auto_update", "1")
-]]--
+
 o = s:taboption("chnr_update", Flag, "chnr_auto_update", translate("Auto Update"))
 o.description = translate("Auto Update Chnroute Lists")
 o.default = 0
@@ -1155,7 +1224,7 @@ end
 ---- debug
 o = s:taboption("debug", DummyValue, "", nil)
 o.template = "openclash/debug"
---[[
+
 ---- dlercloud
 o = s:taboption("dlercloud", Value, "dler_email")
 o.title = translate("Account Email Address")
@@ -1203,7 +1272,7 @@ if m.uci:get("openclash", "config", "dler_token") then
 else
 	o.value = font_red..bold_on..translate("Account not logged in")..bold_off..font_off
 end
-]]--
+
 local t = {
     {Commit, Apply}
 }
@@ -1228,6 +1297,7 @@ o.write = function()
 end
 
 m:append(Template("openclash/config_editor"))
+m:append(Template("openclash/toolbar_show"))
 m:append(Template("openclash/select_git_cdn"))
 
 return m
