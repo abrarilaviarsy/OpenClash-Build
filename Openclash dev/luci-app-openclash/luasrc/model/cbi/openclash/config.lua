@@ -60,7 +60,7 @@ function config_check(CONFIG_FILE)
 	end
 end
 
-ful = SimpleForm("upload", translate("Config Manage"), nil)
+ful = SimpleForm("upload", nil)
 ful.reset = false
 ful.submit = false
 
@@ -94,7 +94,7 @@ HTTP.setfilehandler(
 				if meta and chunk then fd = nixio.open(proxy_pro_dir .. meta.file, "w") end
 			elseif fp == "rule-provider" then
 				if meta and chunk then fd = nixio.open(rule_pro_dir .. meta.file, "w") end
-			elseif fp == "clash_meta" then
+			elseif fp == "clash" or fp == "clash_tun" or fp == "clash_meta" then
 				create_core_dir=fs.mkdir(core_dir)
 				if meta and chunk then fd = nixio.open(core_dir .. meta.file, "w") end
 			elseif fp == "backup-file" then
@@ -132,37 +132,20 @@ HTTP.setfilehandler(
 				um.value = translate("File saved to") .. ' "/etc/openclash/proxy_provider/"'
 			elseif fp == "rule-provider" then
 				um.value = translate("File saved to") .. ' "/etc/openclash/rule_provider/"'
-			elseif fp == "clash_meta" then
+			elseif fp == "clash" or fp == "clash_tun" or fp == "clash_meta" then
 				if string.lower(string.sub(meta.file, -7, -1)) == ".tar.gz" then
-					-- tar.gz
-					os.execute(string.format("tar -C '/etc/openclash/core/core' -xzf '%s' >/dev/null 2>&1", (core_dir .. meta.file)))
-					local first_file_cmd = "find /etc/openclash/core/core -type f 2>/dev/null | head -1"
-					local first_file = io.popen(first_file_cmd):read("*line")
-					if first_file and first_file ~= "" then
-						os.execute(string.format("mv '%s' '/etc/openclash/core/%s' >/dev/null 2>&1", first_file, fp))
-					end
-				elseif string.lower(string.sub(meta.file, -4, -1)) == ".tar" then
-					-- tar
-					os.execute(string.format("tar -C '/etc/openclash/core/core' -xf '%s' >/dev/null 2>&1", (core_dir .. meta.file)))
-					local first_file_cmd = "find /etc/openclash/core/core -type f 2>/dev/null | head -1"
-					local first_file = io.popen(first_file_cmd):read("*line")
-					if first_file and first_file ~= "" then
-						os.execute(string.format("mv '%s' '/etc/openclash/core/%s' >/dev/null 2>&1", first_file, fp))
-					end
+					os.execute(string.format("tar -C '/etc/openclash/core/core' -xzf %s >/dev/null 2>&1", (core_dir .. meta.file)))
+					fs.unlink(core_dir .. meta.file)
+					os.execute(string.format("mv $(echo \"/etc/openclash/core/core/$(ls /etc/openclash/core/core/)\") '/etc/openclash/core/%s' >/dev/null 2>&1", fp))
 				elseif string.lower(string.sub(meta.file, -3, -1)) == ".gz" then
-					-- gz
-					os.execute(string.format("gzip -fd '%s' >/dev/null 2>&1", (core_dir .. meta.file)))
-					local first_file_cmd = "find /etc/openclash/core/core -type f 2>/dev/null | head -1"
-					local first_file = io.popen(first_file_cmd):read("*line")
-					if first_file and first_file ~= "" then
-						os.execute(string.format("mv '%s' '/etc/openclash/core/%s' >/dev/null 2>&1", first_file, fp))
-					end
+					os.execute(string.format("mv %s '/etc/openclash/core/%s.gz' >/dev/null 2>&1", (core_dir .. meta.file), fp))
+					os.execute("gzip -fd '/etc/openclash/core/%s.gz' >/dev/null 2>&1" %fp)
+					fs.unlink("/etc/openclash/core/%s.gz" %fp)
 				else
-					os.execute(string.format("mv '%s' '/etc/openclash/core/%s' >/dev/null 2>&1", (core_dir .. meta.file), fp))
+					os.execute(string.format("mv $(echo \"/etc/openclash/core/core/$(ls /etc/openclash/core/core/)\") '/etc/openclash/core/%s' >/dev/null 2>&1", fp))
 				end
-				
-				os.execute(string.format("chmod 4755 '/etc/openclash/core/%s' >/dev/null 2>&1", fp))
-				os.execute(string.format("rm -rf %s >/dev/null 2>&1", core_dir))
+				os.execute("chmod 4755 /etc/openclash/core/%s >/dev/null 2>&1" %fp)
+				os.execute("rm -rf %s >/dev/null 2>&1" %core_dir)
 				um.value = translate("File saved to") .. ' "/etc/openclash/core/"'
 			elseif fp == "backup-file" then
 				os.execute("tar -C '/etc/openclash/' -xzf %s >/dev/null 2>&1" % (backup_dir .. meta.file))
@@ -204,7 +187,7 @@ e[t].remove=0
 end
 end
 
-form=SimpleForm("config_file_list",translate("Config File List"))
+form=SimpleForm("config_file_list")
 form.reset=false
 form.submit=false
 tb=form:section(Table,e)
@@ -247,7 +230,7 @@ btned.write=function(a,t)
 	HTTP.redirect(DISP.build_url("admin", "services", "openclash", "other-file-edit", "config", "%s") %file_path)
 end
 
-btncp=tb:option(Button,"copy",translate("Copy Config"))
+btncp=tb:option(Button,"copy",translate("Copy"))
 btncp.template="openclash/other_button"
 btncp.render=function(o,t,a)
 if not e[t] then return false end
@@ -279,7 +262,7 @@ c.value = e[t].name
 DummyValue.render(c,t,a)
 end
 
-btndl = tb:option(Button,"download",translate("Download Config"))
+btndl = tb:option(Button,"download",translate("Download"))
 btndl.template="openclash/other_button"
 btndl.render=function(e,t,a)
 e.inputstyle="remove"
@@ -312,7 +295,7 @@ btndl.write = function (a,t)
 	HTTP.close()
 end
 
-btndlr = tb:option(Button,"download_run",translate("Download Running Config"))
+btndlr = tb:option(Button,"download_run",translate("D/L Running"))
 btndlr.template="openclash/other_button"
 btndlr.render=function(c,t,a)
 	if nixio.fs.access("/etc/openclash/"..e[t].name)  then
@@ -367,7 +350,7 @@ btnrm.write=function(a,t)
 	HTTP.redirect(DISP.build_url("admin", "services", "openclash","config"))
 end
 
-p = SimpleForm("provider_file_manage",translate("Provider File Manage"))
+p = SimpleForm("provider_file_manage")
 p.reset = false
 p.submit = false
 
@@ -398,7 +381,7 @@ o.write = function()
   HTTP.redirect(DISP.build_url("admin", "services", "openclash", "game-rules-file-manage"))
 end
 
-m = SimpleForm("openclash",translate("Config File Edit"))
+m = SimpleForm("openclash")
 m.reset = false
 m.submit = false
 
