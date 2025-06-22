@@ -7,12 +7,10 @@ function index()
 
 	local page
 	
-	page = entry({"admin", "services", "openclash"}, alias("admin", "services", "openclash", "client"), _("OC Lite"), 50)
+	page = entry({"admin", "services", "openclash"}, alias("admin", "services", "openclash", "client"), _("OpenClash"), 1)
 	page.dependent = true
 	page.acl_depends = { "luci-app-openclash" }
 	entry({"admin", "services", "openclash", "client"},form("openclash/client"),_("Overviews"), 20).leaf = true
-	entry({"admin", "services", "openclash", "yacd"},template("openclash/yacd"),_("Yacd panel"), 23).leaf = true
-	entry({"admin", "services", "openclash", "metacube"},template("openclash/metacube"),_("Metacube Panel"), 24).leaf = true
 	entry({"admin", "services", "openclash", "status"},call("action_status")).leaf=true
 	entry({"admin", "services", "openclash", "state"},call("action_state")).leaf=true
 	entry({"admin", "services", "openclash", "startlog"},call("action_start")).leaf=true
@@ -28,11 +26,13 @@ function index()
 	entry({"admin", "services", "openclash", "lastversion"},call("action_lastversion"))
 	entry({"admin", "services", "openclash", "save_corever_branch"},call("action_save_corever_branch"))
 	entry({"admin", "services", "openclash", "update"},call("action_update"))
+	entry({"admin", "services", "openclash", "get_last_version"},call("action_get_last_version"))
 	entry({"admin", "services", "openclash", "update_info"},call("action_update_info"))
 	entry({"admin", "services", "openclash", "update_ma"},call("action_update_ma"))
 	entry({"admin", "services", "openclash", "opupdate"},call("action_opupdate"))
 	entry({"admin", "services", "openclash", "coreupdate"},call("action_coreupdate"))
 	entry({"admin", "services", "openclash", "flush_fakeip_cache"}, call("action_flush_fakeip_cache"))
+	entry({"admin", "services", "openclash", "update_config"}, call("action_update_config"))
 	entry({"admin", "services", "openclash", "download_rule"}, call("action_download_rule"))
 	entry({"admin", "services", "openclash", "restore"}, call("action_restore_config"))
 	entry({"admin", "services", "openclash", "backup"}, call("action_backup"))
@@ -74,26 +74,27 @@ function index()
 	entry({"admin", "services", "openclash", "set_subinfo_url"}, call("set_subinfo_url"))
 	entry({"admin", "services", "openclash", "check_core"}, call("action_check_core"))
 	entry({"admin", "services", "openclash", "core_download"}, call("core_download"))
+--	entry({"admin", "services", "openclash", "announcement"}, call("action_announcement"))
 	entry({"admin", "services", "openclash", "settings"},cbi("openclash/settings"),_("Plugin Settings"), 30).leaf = true
 	entry({"admin", "services", "openclash", "config-overwrite"},cbi("openclash/config-overwrite"),_("Overwrite Settings"), 40).leaf = true
---	entry({"admin", "services", "openclash", "servers"},cbi("openclash/servers"),_("Onekey Create"), 50).leaf = true
+	entry({"admin", "services", "openclash", "servers"},cbi("openclash/servers"),_("Onekey Create"), 50).leaf = true
 	entry({"admin", "services", "openclash", "other-rules-edit"},cbi("openclash/other-rules-edit"), nil).leaf = true
 	entry({"admin", "services", "openclash", "custom-dns-edit"},cbi("openclash/custom-dns-edit"), nil).leaf = true
 	entry({"admin", "services", "openclash", "other-file-edit"},cbi("openclash/other-file-edit"), nil).leaf = true
---	entry({"admin", "services", "openclash", "rule-providers-settings"},cbi("openclash/rule-providers-settings"),_("Rule Providers Append"), 60).leaf = true
+	entry({"admin", "services", "openclash", "rule-providers-settings"},cbi("openclash/rule-providers-settings"),_("Rule Providers Append"), 60).leaf = true
 	entry({"admin", "services", "openclash", "game-rules-manage"},form("openclash/game-rules-manage"), nil).leaf = true
 	entry({"admin", "services", "openclash", "rule-providers-manage"},form("openclash/rule-providers-manage"), nil).leaf = true
 	entry({"admin", "services", "openclash", "proxy-provider-file-manage"},form("openclash/proxy-provider-file-manage"), nil).leaf = true
 	entry({"admin", "services", "openclash", "rule-providers-file-manage"},form("openclash/rule-providers-file-manage"), nil).leaf = true
 	entry({"admin", "services", "openclash", "game-rules-file-manage"},form("openclash/game-rules-file-manage"), nil).leaf = true
 --	entry({"admin", "services", "openclash", "config-subscribe"},cbi("openclash/config-subscribe"),_("Config Subscribe"), 70).leaf = true
-	entry({"admin", "services", "openclash", "config-subscribe-edit"},cbi("openclash/config-subscribe-edit"), nil).leaf = true
+--	entry({"admin", "services", "openclash", "config-subscribe-edit"},cbi("openclash/config-subscribe-edit"), nil).leaf = true
 	entry({"admin", "services", "openclash", "servers-config"},cbi("openclash/servers-config"), nil).leaf = true
 	entry({"admin", "services", "openclash", "groups-config"},cbi("openclash/groups-config"), nil).leaf = true
 	entry({"admin", "services", "openclash", "proxy-provider-config"},cbi("openclash/proxy-provider-config"), nil).leaf = true
 	entry({"admin", "services", "openclash", "rule-providers-config"},cbi("openclash/rule-providers-config"), nil).leaf = true
 	entry({"admin", "services", "openclash", "config"},form("openclash/config"),_("Config Manage"), 80).leaf = true
-	entry({"admin", "services", "openclash", "editconfig"},template("openclash/editconfig"),_("edit config"), 90).leaf = true
+	entry({"admin", "services", "openclash", "oceditor"},template("openclash/oceditor"),_("Config Editor"), 90).leaf = true
 	entry({"admin", "services", "openclash", "log"},cbi("openclash/log"),_("Server Logs"), 110).leaf = true
 
 end
@@ -107,6 +108,8 @@ local device_arh = luci.sys.exec("uname -m |tr -d '\n'")
 
 if pcall(require, "luci.model.ipkg") then
 	opkg = require "luci.model.ipkg"
+else
+	opkg = nil
 end
 
 local core_path_mode = uci:get("openclash", "config", "small_flash_memory")
@@ -161,19 +164,8 @@ local function chnroutev6()
 end
 
 local function daip()
-	local daip, lan_int_name
-	lan_int_name = uci:get("openclash", "config", "lan_interface_name") or "0"
-	if lan_int_name == "0" then
-		daip = luci.sys.exec("uci -q get network.lan.ipaddr |awk -F '/' '{print $1}' 2>/dev/null |tr -d '\n'")
-	else
-		daip = luci.sys.exec(string.format("ip address show %s | grep -w 'inet'  2>/dev/null |grep -Eo 'inet [0-9\.]+' | awk '{print $2}' | tr -d '\n'", lan_int_name))
-	end
-	if not daip or daip == "" then
-		daip = luci.sys.exec("ip address show $(uci -q -p /tmp/state get network.lan.ifname || uci -q -p /tmp/state get network.lan.device) | grep -w 'inet'  2>/dev/null |grep -Eo 'inet [0-9\.]+' | awk '{print $2}' | tr -d '\n'")
-	end
-	if not daip or daip == "" then
-		daip = luci.sys.exec("ip addr show 2>/dev/null | grep -w 'inet' | grep 'global' | grep 'brd' | grep -Eo 'inet [0-9\.]+' | awk '{print $2}' | head -n 1 | tr -d '\n'")
-	end
+	local daip
+	daip = fs.lanip()
 	return daip
 end
 
@@ -215,11 +207,23 @@ local function startlog()
 	return line_trans
 end
 
+local function pkg_type()
+	if fs.access("/usr/bin/apk") then
+		return "apk"
+	else
+		return "opkg"
+	end
+end
+
 local function coremodel()
 	if opkg and opkg.info("libc") and opkg.info("libc")["libc"] then
 		return opkg.info("libc")["libc"]["Architecture"]
 	else
-		return luci.sys.exec("rm -f /var/lock/opkg.lock && opkg status libc 2>/dev/null |grep 'Architecture' |awk -F ': ' '{print $2}' 2>/dev/null")
+		if pkg_type() == "opkg" then
+			return luci.sys.exec("rm -f /var/lock/opkg.lock && opkg status libc 2>/dev/null |grep 'Architecture' |awk -F ': ' '{print $2}' 2>/dev/null")
+		else
+			return luci.sys.exec("apk list libc 2>/dev/null |awk '{print $2}'")
+		end
 	end
 end
 
@@ -235,13 +239,23 @@ local function coremetacv()
 	if not nixio.fs.access(meta_core_path) then
 		return "0"
 	else
-		return luci.sys.exec(string.format("%s -v 2>/dev/null |awk -F ' ' '{print $3}' |head -1", meta_core_path))
+		return luci.sys.exec(string.format("%s -v 2>/dev/null |awk -F ' ' '{print $3}' |head -1 |tr -d '\n'", meta_core_path))
 	end
 end
 
 local function corelv()
-	luci.sys.call("bash /usr/share/openclash/clash_version.sh")
-	local core_meta_lv = luci.sys.exec("sed -n 3p /tmp/clash_last_version 2>/dev/null")
+	local status = process_status("/usr/share/openclash/clash_version.sh")
+    local core_meta_lv = ""
+    if not status then
+		if fs.access("/tmp/clash_last_version") then
+        	core_meta_lv = luci.sys.exec("sed -n 3p /tmp/clash_last_version 2>/dev/null |tr -d '\n'")
+		else
+			action_get_last_version()
+			core_meta_lv = "loading..."
+		end
+	else
+		core_meta_lv = "loading..."
+	end
 	return core_meta_lv
 end
 
@@ -249,14 +263,28 @@ local function opcv()
 	if opkg and opkg.info("luci-app-openclash") and opkg.info("luci-app-openclash")["luci-app-openclash"] then
 		return "v" .. opkg.info("luci-app-openclash")["luci-app-openclash"]["Version"]
 	else
-		return luci.sys.exec("rm -f /var/lock/opkg.lock && opkg status luci-app-openclash 2>/dev/null |grep 'Version' |awk -F 'Version: ' '{print \"v\"$2}'")
+		if pkg_type() == "opkg" then
+			return luci.sys.exec("rm -f /var/lock/opkg.lock && opkg status luci-app-openclash 2>/dev/null |grep 'Version' |awk -F 'Version: ' '{print \"v\"$2}' |tr -d '\n'")
+		else
+			return "v" .. luci.sys.exec("apk list luci-app-openclash 2>/dev/null|grep 'installed' | grep -oE '[0-9]+(\\.[0-9]+)*' | head -1 |tr -d '\n'")
+		end
 	end
 end
 
 local function oplv()
-	local new = luci.sys.call(string.format("bash /usr/share/openclash/openclash_version.sh"))
-	local oplv = luci.sys.exec("sed -n 1p /tmp/openclash_last_version 2>/dev/null")
-	return oplv .. "," .. new
+	local status = process_status("/usr/share/openclash/openclash_version.sh")
+    local oplv = ""
+    if not status then
+		if fs.access("/tmp/openclash_last_version") then
+        	oplv = luci.sys.exec("sed -n 1p /tmp/openclash_last_version 2>/dev/null |tr -d '\n'")
+		else
+			action_get_last_version()
+			oplv = "loading..."
+		end
+	else
+		oplv = "loading..."
+    end
+	return oplv
 end
 
 local function opup()
@@ -343,12 +371,17 @@ function action_flush_fakeip_cache()
 		local dase = dase() or ""
 		local cn_port = cn_port()
 		if not daip or not cn_port then return end
-  	state = luci.sys.exec(string.format('curl -sL -m 3 -H "Content-Type: application/json" -H "Authorization: Bearer %s" -XPOST http://"%s":"%s"/cache/fakeip/flush', dase, daip, cn_port))
-  end
-  luci.http.prepare_content("application/json")
+		state = luci.sys.exec(string.format('curl -sL -m 3 -H "Content-Type: application/json" -H "Authorization: Bearer %s" -XPOST http://"%s":"%s"/cache/fakeip/flush', dase, daip, cn_port))
+	end
+	luci.http.prepare_content("application/json")
 	luci.http.write_json({
 		flush_status = state;
 	})
+end
+
+function action_update_config()
+	local filename = luci.http.formvalue("filename") or "config"
+	luci.sys.exec(string.format("/usr/share/openclash/openclash.sh '%s' >/dev/null 2>&1 &", filename))
 end
 
 function action_restore_config()
@@ -360,6 +393,8 @@ function action_restore_config()
 	luci.sys.call("cp /usr/share/openclash/backup/openclash_force_sniffing* /etc/openclash/custom/ >/dev/null 2>&1 &")
 	luci.sys.call("cp /usr/share/openclash/backup/openclash_sniffing* /etc/openclash/custom/ >/dev/null 2>&1 &")
 	luci.sys.call("cp /usr/share/openclash/backup/yml_change.sh /usr/share/openclash/yml_change.sh >/dev/null 2>&1 &")
+	luci.sys.call("cp /usr/share/openclash/backup/china_ip_route.ipset /etc/openclash/china_ip_route.ipset >/dev/null 2>&1 &")
+	luci.sys.call("cp /usr/share/openclash/backup/china_ip6_route.ipset /etc/openclash/china_ip6_route.ipset >/dev/null 2>&1 &")
 	luci.sys.call("rm -rf /etc/openclash/history/* >/dev/null 2>&1 &")
 end
 
@@ -617,10 +652,18 @@ function set_subinfo_url()
 end
 
 function sub_info_get()
-	local filepath, filename, sub_url, sub_info, info, upload, download, total, expire, http_code, len, percent, day_left, day_expire, surplus, used
+	local sub_ua, filepath, filename, sub_url, sub_info, info, upload, download, total, expire, http_code, len, percent, day_left, day_expire, surplus, used
 	local info_tb = {}
 	filename = luci.http.formvalue("filename")
 	sub_info = ""
+	sub_ua = "Clash"
+	uci:foreach("openclash", "config_subscribe",
+		function(s)
+			if s.name == filename and s.sub_ua then
+				sub_ua = s.sub_ua
+			end
+		end
+	)
 	if filename and not is_start() then
 		uci:foreach("openclash", "subscribe_info",
 			function(s)
@@ -643,7 +686,7 @@ function sub_info_get()
 		if not sub_url then
 			sub_info = "No Sub Info Found"
 		else
-			info = luci.sys.exec(string.format("curl -sLI -X GET -m 10 -w 'http_code='%%{http_code} -H 'User-Agent: Clash' '%s'", sub_url))
+			info = luci.sys.exec(string.format("curl -sLI -X GET -m 10 -w 'http_code='%%{http_code} -H 'User-Agent: %s' '%s'", sub_ua, sub_url))
 			if not info or tonumber(string.sub(string.match(info, "http_code=%d+"), 11, -1)) ~= 200 then
 				info = luci.sys.exec(string.format("curl -sLI -X GET -m 10 -w 'http_code='%%{http_code} -H 'User-Agent: Quantumultx' '%s'", sub_url))
 			end
@@ -660,24 +703,61 @@ function sub_info_get()
 						if string.match(info, "expire=%d+") then
 							day_expire = tonumber(string.sub(string.match(info, "expire=%d+"), 8, -1)) or nil
 						end
-						expire = os.date("%Y-%m-%d", day_expire) or "null"
-						if day_expire and os.time() <= day_expire then
+
+						if day_expire and day_expire == 0 then
+							expire = luci.i18n.translate("Long-term")
+						elseif day_expire then
+							expire = os.date("%Y-%m-%d", day_expire) or "null"
+						else
+							expire = "null"
+						end
+
+						if day_expire and day_expire ~= 0 and os.time() <= day_expire then
 							day_left = math.ceil((day_expire - os.time()) / (3600*24))
+							if math.ceil(day_left / 365) > 50 then
+								day_left = "∞"
+							end
+						elseif day_expire and day_expire == 0 then
+							day_left = "∞"
 						elseif day_expire == nil then
 							day_left = "null"
 						else
 							day_left = 0
 						end
-						if used and total and used < total then
-							percent = string.format("%.1f",((total-used)/total)*100) or nil
-						elseif used == nil or total == nil or total == 0 then
+						
+						if used and total and used <= total and total > 0 then
+							percent = string.format("%.1f",((total-used)/total)*100) or "100"
+							surplus = fs.filesize(total - used)
+						elseif used and total and used > total and total > 0 then
+							percent = "0"
+							surplus = "-"..fs.filesize(total - used)
+						elseif used and total and used < total and total == 0.0 then
+							percent = "0"
+							surplus = fs.filesize(total - used)
+						elseif used and total and used == total and total == 0.0 then
+							percent = "0"
+							surplus = "0.0 KB"
+						elseif used and total and used > total and total == 0.0 then
+							percent = "100"
+							surplus = fs.filesize(total - used)
+						elseif used == nil and total and total > 0.0 then
 							percent = 100
+							surplus = fs.filesize(total)
+						elseif used == nil and total and total == 0.0 then
+							percent = 100
+							surplus = "∞"
 						else
 							percent = 0
+							surplus = "null"
 						end
-						surplus = fs.filesize(total - used) or "null"
-						total = fs.filesize(total) or "null"
-						used = fs.filesize(used) or "null"
+						if total and total > 0 then
+							total = fs.filesize(total)
+						elseif total and total == 0.0 then
+							total = "∞"
+						else
+							total = "null"
+						end
+						used = fs.filesize(used)
 						sub_info = "Successful"
 					else
 						sub_info = "No Sub Info Found"
@@ -819,7 +899,7 @@ end
 
 local function s(e)
 local t=0
-local a={' B/S',' KB/S',' MB/S',' GB/S',' TB/S'}
+local a={' B/S',' KB/S',' MB/S',' GB/S',' TB/S',' PB/S'}
 if (e<=1024) then
 	return e..a[1]
 else
@@ -833,15 +913,12 @@ end
 
 function action_toolbar_show_sys()
 	local pid = luci.sys.exec("pidof clash |head -1 |tr -d '\n' 2>/dev/null")
-	local mem, cpu
+	local cpu
 	if pid and pid ~= "" then
-		mem = tonumber(luci.sys.exec(string.format("cat /proc/%s/status 2>/dev/null |grep -w VmRSS |awk '{print $2}'", pid)))
 		cpu = luci.sys.exec(string.format("top -b -n1 |grep -E '%s' 2>/dev/null |grep -v grep |awk '{for (i=1;i<=NF;i++) {if ($i ~ /clash/) break; else cpu=i}}; {print $cpu}' 2>/dev/null", pid))
-		if mem and cpu then
-			mem = fs.filesize(mem*1024) or "0 KB"
+		if cpu then
 			cpu = string.match(cpu, "%d+") or "0"
 		else
-			mem = "0 KB"
 			cpu = "0"
 		end
 	else
@@ -849,7 +926,6 @@ function action_toolbar_show_sys()
 	end
 	luci.http.prepare_content("application/json")
 	luci.http.write_json({
-		mem = mem,
 		cpu = cpu;
 	})
 end
@@ -1063,6 +1139,15 @@ function action_start()
 	})
 end
 
+function action_get_last_version()
+	luci.sys.call("bash /usr/share/openclash/clash_version.sh &")
+	luci.sys.call("bash /usr/share/openclash/openclash_version.sh &")
+	luci.http.prepare_content("application/json")
+	luci.http.write_json({
+			status = "success"
+	})
+end
+
 function action_update()
 	luci.http.prepare_content("application/json")
 	luci.http.write_json({
@@ -1087,6 +1172,7 @@ function action_update_ma()
 	luci.http.prepare_content("application/json")
 	luci.http.write_json({
 			oplv = oplv(),
+			pkg_type = pkg_type(),
 			corelv = corelv(),
 			corever = corever();
 	})
@@ -1146,81 +1232,87 @@ function action_download_rule()
 end
 
 function action_refresh_log()
-	luci.http.prepare_content("application/json")
-	local logfile="/tmp/openclash.log"
-	local file = io.open(logfile, "r+")
-	local info, len, line, lens, cache, ex_match, line_trans
-	local data = ""
-	local limit = 1000
-	local log_tb = {}
-	local log_len = tonumber(luci.http.formvalue("log_len")) or 0
-	if file == nil then
- 		return nil
- 	end
- 	file:seek("set")
- 	info = file:read("*all")
- 	info = info:reverse()
- 	file:close()
- 	cache, len = string.gsub(info, '[^\n]+', "")
- 	if len == log_len then return nil end
-	if log_len == 0 then
-		if len > limit then lens = limit else lens = len end
-	else
-		lens = len - log_len
-	end
-	string.gsub(info, '[^\n]+', function(w) table.insert(log_tb, w) end, lens)
-	for i=1, lens do
-		line = log_tb[i]:reverse()
-		line_trans = line
-		ex_match = false
-		core_match = false
-		time_format = false
-		while true do
-			ex_keys = {"UDP%-Receive%-Buffer%-Size", "^Sec%-Fetch%-Mode", "^User%-Agent", "^Access%-Control", "^Accept", "^Origin", "^Referer", "^Connection", "^Pragma", "^Cache-"}
-			for key=1, #ex_keys do
-				if string.find (line, ex_keys[key]) then
-					ex_match = true
-					break
-				end
+    luci.http.prepare_content("application/json")
+    local logfile = "/tmp/openclash.log"
+    local log_len = tonumber(luci.http.formvalue("log_len")) or 0
+    
+    if not fs.access(logfile) then
+        luci.http.write_json({
+            len = 0,
+            update = false,
+            core_log = "",
+            oc_log = ""
+        })
+        return
+    end
+    
+    local total_lines = tonumber(luci.sys.exec("wc -l < " .. logfile)) or 0
+    
+    if total_lines == log_len and log_len > 0 then
+        luci.http.write_json({
+            len = total_lines,
+            update = false,
+            core_log = "",
+            oc_log = ""
+        })
+        return
+    end
+    
+    local exclude_pattern = "UDP%-Receive%-Buffer%-Size|^Sec%-Fetch%-Mode|^User%-Agent|^Access%-Control|^Accept|^Origin|^Referer|^Connection|^Pragma|^Cache%-"
+    local core_pattern = " DBG | INF |level=| WRN | ERR | FTL "
+    local limit = 1000
+    local start_line = (log_len > 0 and total_lines > log_len) and (log_len + 1) or 1
+    
+    local core_cmd = string.format(
+        "tail -n +%d '%s' | grep -v -E '%s' | grep -E '%s' | tail -n %d",
+        start_line, logfile, exclude_pattern, core_pattern, limit
+    )
+    local core_raw = luci.sys.exec(core_cmd)
+    
+    local oc_cmd = string.format(
+        "tail -n +%d '%s' | grep -v -E '%s' | grep -v -E '%s' | tail -n %d",
+        start_line, logfile, exclude_pattern, core_pattern, limit
+    )
+    local oc_raw = luci.sys.exec(oc_cmd)
+    
+    local core_log = ""
+    if core_raw and core_raw ~= "" then
+        local core_logs = {}
+        for line in core_raw:gmatch("[^\n]+") do
+            local line_trans = line
+			if string.match(string.sub(line, 0, 8), "%d%d:%d%d:%d%d") then
+				line_trans = '"'..os.date("%Y-%m-%d", os.time()).. " "..os.date("%H:%M:%S", tonumber(string.sub(line, 0, 8)))..'"'..string.sub(line, 9, -1)
 			end
-    		if ex_match then break end
-
-			core_keys = {" DBG ", " INF ", "level=", " WRN ", " ERR ", " FTL "}
-			for key=1, #core_keys do
-				if string.find(string.sub(line, 0, 13), core_keys[key]) or (string.find(line, core_keys[key]) and core_keys[key] == "level=") then
-					core_match = true
-					if core_keys[key] ~= "level=" then
-						time_format = true
-					end
-					break
-				end
-			end
-			if time_format then
-				if string.match(string.sub(line, 0, 8), "%d%d:%d%d:%d%d") then
-					line_trans = '"'..os.date("%Y-%m-%d %H:%M:%S", tonumber(string.sub(line, 0, 8)))..'"'..string.sub(line, 9, -1)
-				end
-			end
-			if not core_match then
-				if not string.find (line, "【") or not string.find (line, "】") then
-					line_trans = trans_line_nolabel(line)
-				else
-					line_trans = trans_line(line)
-				end
-			end
-			if data == "" then
-				data = line_trans
-			elseif log_len == 0 and i == limit then
-				data = data .."\n" .. line_trans .. "\n..."
-			else
-				data = data .."\n" .. line_trans
-			end
-    		break
-    	end
-	end
-	luci.http.write_json({
-		len = len,
-		log = data;
-	})
+            table.insert(core_logs, line_trans)
+        end
+        if #core_logs > 0 then
+            core_log = table.concat(core_logs, "\n")
+        end
+    end
+    
+    local oc_log = ""
+    if oc_raw and oc_raw ~= "" then
+        local oc_logs = {}
+        for line in oc_raw:gmatch("[^\n]+") do
+            local line_trans
+            if not string.find(line, "【") or not string.find(line, "】") then
+                line_trans = trans_line_nolabel(line)
+            else
+                line_trans = trans_line(line)
+            end
+            table.insert(oc_logs, line_trans)
+        end
+        if #oc_logs > 0 then
+            oc_log = table.concat(oc_logs, "\n")
+        end
+    end
+    
+    luci.http.write_json({
+        len = total_lines,
+        update = true,
+        core_log = core_log,
+        oc_log = oc_log
+    })
 end
 
 function action_del_log()
@@ -1583,61 +1675,98 @@ function all_proxies_stream_test()
 end
 
 function trans_line_nolabel(data)
-	local line_trans = ""
-	if string.match(string.sub(data, 0, 19), "%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d") then
-		line_trans = string.sub(data, 0, 20)..luci.i18n.translate(string.sub(data, 21, -1))
-	else
-		line_trans = luci.i18n.translate(string.sub(data, 0, -1))
-	end
-	return line_trans
+    if data == nil or data == "" then
+        return ""
+    end
+    
+    local line_trans = ""
+    if string.len(data) >= 19 and string.match(string.sub(data, 0, 19), "%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d") then
+        line_trans = string.sub(data, 0, 20)..luci.i18n.translate(string.sub(data, 21, -1))
+    else
+        line_trans = luci.i18n.translate(data)
+    end
+    return line_trans
 end
 
 function trans_line(data)
-	local no_trans = {}
-	local line_trans = ""
-	local a = string.find (data, "【")
-	local b = string.find (data, "】") + 2
-	local c = 21
-	local d = 0
-	local v
-	local x
-	while true do
-		table.insert(no_trans, a)
-		table.insert(no_trans, b)
-		if string.find (data, "【", b+1) and string.find (data, "】", b+1) then
-			a = string.find (data, "【", b+1)
-			b = string.find (data, "】", b+1) + 2
-		else
-			break
-		end
-	end
-	for k = 1, #no_trans, 2 do
-		x = no_trans[k]
-		v = no_trans[k+1]
-		if x <= 21 or not string.match(string.sub(data, 0, 19), "%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d") then
-			line_trans = line_trans .. luci.i18n.translate(string.sub(data, d, x - 1)) .. string.sub(data, x, v)
-			d = v + 1
-		elseif v <= string.len(data) then
-			line_trans = line_trans .. luci.i18n.translate(string.sub(data, c, x - 1)) .. string.sub(data, x, v)
-		end
-		c = v + 1
-	end
-	if c > string.len(data) then
-		if d == 0 then
-			if string.match(string.sub(data, 0, 19), "%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d") then
-				line_trans = string.sub(data, 0, 20) .. line_trans
-			end
-		end
-	else
-		if d == 0 then
-			if string.match(string.sub(data, 0, 19), "%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d") then
-				line_trans = string.sub(data, 0, 20) .. line_trans .. luci.i18n.translate(string.sub(data, c, -1))
-			end
-		else
-			line_trans = line_trans .. luci.i18n.translate(string.sub(data, c, -1))
-		end
-	end
-	return line_trans
+    if data == nil or data == "" then
+        return ""
+    end
+    
+    local no_trans = {}
+    local line_trans = ""
+    local a = string.find(data, "【")
+    
+    if not a then
+        if string.len(data) >= 19 and string.match(string.sub(data, 0, 19), "%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d") then
+            return string.sub(data, 0, 20) .. luci.i18n.translate(string.sub(data, 21, -1))
+        else
+            return luci.i18n.translate(data)
+        end
+    end
+    
+    local b_pos = string.find(data, "】")
+    if not b_pos then
+        return luci.i18n.translate(data)
+    end
+    
+    local b = b_pos + 2
+    local c = 21
+    local d = 0
+    local v
+    local x
+    
+    while true do
+        table.insert(no_trans, a)
+        table.insert(no_trans, b)
+        
+        local next_a = string.find(data, "【", b+1)
+        local next_b = string.find(data, "】", b+1)
+        
+        if next_a and next_b then
+            a = next_a
+            b = next_b + 2
+        else
+            break
+        end
+    end
+    
+    if #no_trans % 2 ~= 0 then
+        table.remove(no_trans)
+    end
+    
+    for k = 1, #no_trans, 2 do
+        x = no_trans[k]
+        v = no_trans[k+1]
+        
+        if x and v then
+            if x <= 21 or not string.match(string.sub(data, 0, 19), "%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d") then
+                line_trans = line_trans .. luci.i18n.translate(string.sub(data, d, x - 1)) .. string.sub(data, x, v)
+                d = v + 1
+            elseif v <= string.len(data) then
+                line_trans = line_trans .. luci.i18n.translate(string.sub(data, c, x - 1)) .. string.sub(data, x, v)
+            end
+            c = v + 1
+        end
+    end
+    
+    if c > string.len(data) then
+        if d == 0 then
+            if string.match(string.sub(data, 0, 19), "%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d") then
+                line_trans = string.sub(data, 0, 20) .. line_trans
+            end
+        end
+    else
+        if d == 0 then
+            if string.match(string.sub(data, 0, 19), "%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d") then
+                line_trans = string.sub(data, 0, 20) .. line_trans .. luci.i18n.translate(string.sub(data, c, -1))
+            end
+        else
+            line_trans = line_trans .. luci.i18n.translate(string.sub(data, c, -1))
+        end
+    end
+    
+    return line_trans
 end
 
 function process_status(name)
